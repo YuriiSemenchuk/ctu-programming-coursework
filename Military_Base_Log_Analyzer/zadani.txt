@@ -1,0 +1,109 @@
+Úkolem je realizovat třídy, která implementují analýzu logů.
+
+Předpokládáme vojenskou základnu. Ta je uvnitř rozdělená na zóny. Každá zóna má své jméno - řetězec. Mezi některými zónami existují brány, kterými lze po kontrole projít. Kontrola při průchodu trvá nenulový čas, procházet lze vždy oběma směry. Z důvodu úspor tyto vnitřní brány nezaznamenávají procházející a neposkytují žádné logy.
+
+Vojenská základna je propojená s vnějším světem několika branami. Brány jsou opět obousměrné a umožní průchod mezi vnějším světem a některými zónami základny. Brány zaznamenávají procházející do logu, vždy je zaznamenán čas průchodu a jméno osoby.
+
+Implementovaná třída dostane parametrem jméno souboru s popisem základny. Následně může dostat jeden nebo více požadavků na zpracování logu. Pro zadaný log vyhledá, které osoby mohly v zadaném časovém intervalu pobývat v zadané zóně.
+
+Soubor s popisem základny je textový a je členěn do řádek. Na každé řádce je trojice informací:
+
+zónaA zónaB přísnost
+kde zónaA a zónaB jsou řetězce bez bílých znaků a udávají dvojici zón, které daná vnitřní brána propojuje. Hodnota přísnost je pak celé číslo 1 až 9, které udává přísnost kontroly, která na dané bráně probíhá. Vyšší přísnost znamená delší kontrolu a delší zdržení při průchodu branou. Pro jednoduchost předpokládáme, že přísnost=1 znamená zdržení 1 minutu, přísnost=2 znamená zdržení 2 minuty až přísnost=9 znamená zdržení 9 minut. Základní řešení musí umět pracovat s kontrolami, kde přísnost=1, vyšší hodnoty jsou zadávané pouze v bonusových testech.
+Soubor s logy obsahuje záznamy o lidech, kteří přicházejí/odcházejí ze základny. Vznikne spojením logů jednotlivých bran do vnějšího světa:
+
+gate1entries
+gate2entries
+gate3entries
+...
+gateXentries
+Log každé brány začíná hlavičkou. Ta udává formát, ve kterém jsou následující záznamy. V hlavičce je vždy uvedeno jméno zóny (brána propojuje vnější svět a tuto zónu) a počet záznamů (počet příchodů/odchodů lidí). Formáty jsou celkem tři možné:
+textový: TEXT zóna N\n:
+TEXT je řetězec identifikující formát,
+zóna je řetězec bez bílých znaků,
+N je nezáporné desítkové číslo udávající počet následujících záznamů o procházejících lidech.
+binární ve formátu little-endian: 49 49 49 49 LL LL zóna NN NN NN NN:
+49 49 49 49 jsou 4 bajty s identifikací formát,
+LL LL jsou 2 bajty kódující 16-bitové bezznaménkové celé číslo v little-endian pořadí, toto číslo udává délku řetězce jména zóny,
+zóna je posloupnost bajtů, které tvoří znaky jména zóny, jejich počet je dán délkou výše,
+NN NN NN NN jsou 4 bajty kódující 32-bitové bezznaménkové číslo v little-endian pořadí, toto číslo udává počet následujících záznamů o procházejících lidech.
+binární ve formátu big-endian: 4D 4D 4D 4D LL LL zóna NN NN NN NN:
+4D 4D 4D 4D jsou 4 bajty s identifikací formát,
+ostatní bajty mají stejný význam jako u binárního formátu little-endian výše, pouze vícebajtové hodnoty jsou kódované v poradí big-endian.
+Po hlavičce následuje N záznamů o lidech, kteří prošli zadanou branou. Formát záznamu je určen formátem hlavičky:
+textový: YYYY-MM-DD HH:MI person surname and name(s)\n:
+YYYY-MM-DD HH:MI je čas, ve kterém osoba opustila základnu/vešla do základny,
+surname and name(s) je řetězec identifikující procházející osobu.
+binární ve formátu little-endian: DT DT DT DT LL LL surname-and-name(s):
+DT DT DT DT jsou 4 bajty kódující 32-bitové bezznaménkové číslo v little-endian pořadí, toto číslo udává čas, ve kterém osoba opustila základnu/vešla do základny. Zadaná číselná hodnota je interpretovaná po bitech, jejich význam je následující:
+      bit 31               16   15                0
+          YYYY YYYY YYYY MMMM | DDDD DHHH HHII IIII
+     
+tedy minuta je určena bity 0-5, hodina bity 6-10, den bity 11-15, ...,
+LL LL jsou 2 bajty kódující 16-bitové bezznaménkové celé číslo v little-endian pořadí, toto číslo udává délku řetězce surname-and-name(s),
+surname-and-name(s) je posloupnost bajtů, které tvoří znaky jména a příjmení procházející osoby.
+binární ve formátu big-endian: DT DT DT DT LL LL surname-and-name(s): formát je stejný jako u binárního formátu little-endian, pouze vícebajtové hodnoty jsou kódované v poradí big-endian.
+Příklad (hexdump logu):
+0000   49 49 49 49  0B 00 64 72  61 66 74 4F  66 66 69 63  IIII..draftOffic
+0010   65 04 00 00  00 40 52 A3  7E 0A 00 4A  6F 68 6E 20  e....@R.~..John
+0020   53 6D 69 74  68 40 52 A3  7E 0F 00 47  65 6F 72 67  Smith@R.~..Georg
+0030   65 20 50 65  74 65 72 73  6F 6E 4A 52  A3 7E 0C 00  e PetersonJR.~..
+0040   41 6C 69 63  65 20 43 6F  6F 70 65 72  40 0A 81 7E  Alice Cooper@..~
+0050   10 00 48 65  6E 72 79 20  4D 6F 6E 74  67 6F 6D 65  ..Henry Montgome
+0060   72 79 54 45  58 54 20 70  61 72 6B 69  6E 67 23 31  ryTEXT parking#1
+0070   20 20 20 20  33 0A 32 30  32 36 2D 30  33 2D 31 30      3.2026-03-10
+0080   20 31 30 3A  34 30 20 41  6C 69 63 65  20 43 6F 6F   10:40 Alice Coo
+0090   70 65 72 0A  32 30 32 36  2D 30 33 2D  31 30 20 31  per.2026-03-10 1
+00A0   32 3A 30 30  20 4A 61 6E  65 20 42 75  73 68 0A 32  2:00 Jane Bush.2
+00B0   30 32 36 2D  30 33 2D 31  32 20 39 3A  30 30 20 4A  026-03-12 9:00 J
+00C0   6F 68 6E 20  53 6D 69 74  68 0A                     ohn Smith.
+První brána má hlavičku na offsetu 0000-0014. Záznamy jsou v binárním little-endian formátu (49 49 49 49 na offsetu 0000-0003),
+první brána propojuje vnější svět a zónu draftOffice (délka názvu zóny je 0x000b = 11 znaků, bajty 0004-0005, vlastní znaky názvu zóny jsou bajty na offsetu 0006-0010),
+log první brány obsahuje celkem 4 záznamy (bajty 04 00 00 00 na offsetu 0011-0014),
+první záznam začíná na offsetu 0015:
+datum a čas je daný bajty 40 52 a3 7e na offsetu 0015-0019. Pořadí je little-endian, tedy hodnota je 0x7ea35240 = 0b0111'1110'1010'0011'0101'0010'0100'0000. Tyto bity rozdělíme na složky rok/měsíc/den/hodina/minuta: 0b011111101010'0011'01010'01001'000000, tedy y=0b011111101010=2026, m=0b0011=3, d=0b01010=10, h=0b01001=9 a mi=0b000000=0,
+příjmení a jméno má délku 0x000a=10 (bajty 0a 00 na offsetu 0019-001a), vlastní jméno je dané 10 bajty na adresách 001b-0024 (John Smith),
+první záznam zde končí (offset 0024).
+následuje druhý (0025-0039), třetí (003a-004c) a čtvrtý (004d-0061) záznam z první brány.
+Po logu první brány následuje hlavička logu další brány (offset 0062-0075) a její záznamy,
+log druhé brány je textový (0062-0065), brána propojuje vnější svět a zónu parking#1 a log obsahuje 3 záznamy,
+záznamy jsou textové, je potřeba je číst po řádkách,
+první záznam je 2026-03-10 10:40 Alice Cooper\n, následuje 2026-03-10 12:00 Jane Bush\n a 2026-03-12 9:00 John Smith\n.
+Přečtením 3 řádek textu jsme se dostali na konec souboru, tedy soubor neobsahuje logy žádné další další brány.
+Váš program bude implementovat 3 třídy, které umožní analýzu logů a dokáží určit seznam lidí, kteří se mohli v daném časovém intervalu dostat do zadané zóny základny. Požadované třídy a jejich rozhraní:
+
+CMilBase reprezentuje vojenskou základnu:
+implicitní konstruktor
+inicializuje prázdnou instanci základny.
+readBase(filename)
+načte strukturu základny ze zadaného souboru filename. Pokud soubor neexistuje nebo pokud je formát souboru neplatný, vyhodí metoda výjimku std::runtime_error.
+processLog(filename)
+metoda načte log zadaný filename, vhodně si jej předzpracuje a vrátí instanci třídy CVisitorLog, se kterou bude možné provádět další analýzu. Metodu processLog lze volat opakovaně, volání vrátí novou instanci CVisitorLog. Při volání processLog vždy předpokládáme, že základna je na počátku zcela prázdná, tedy vrácena instance CVisitorLog obsahuje pouze informace získané z filename (neuvažuje dříve zpracované logy). Pokud soubor neexistuje nebo je jeho formát neplatný, metoda vyhodí výjimku std::runtime_error.
+další
+do třídy si můžete přidat další metody, které potřebujete pro vaši implementaci.
+CVisitorLog reprezentuje předzpracovaný seznam lidí, kteří navštívili vojenskou základnu:
+search(filter)
+zpracuje parametry filtru filter a určí seznam lidí, kteří mohli v zadaném časovém intervalu navštívit zadanou zónu základny. Časový interval a zóna jsou dané parametrem filter. Výsledkem je množina řetězců - jmen lidí, kteří se podle časů příchodů a odchodů mohli dostat do zadané zóny (tedy od zaznamenaných příchodů/odchodů měli dost času na to, aby se vnitřními branami dostali do zadané zóny a dosáhli toho ve vymezeném časovém intervalu).
+další
+do třídy si můžete přidat další metody, které potřebujete pro vaši implementaci.
+CAuditFilter reprezentuje omezení na hledané osoby:
+konstruktor(zoneName)
+udává zónu, pro kterou hledáme seznam možných návštěvníků,
+notBefore(y, m, d, h, mi)
+zdola omezuje časový interval. Pokud je omezení aktivní, hledáme možné návštěvníky zadané zóny, kteří byli schopni zónu navštívit v čase y-m-d h:mi nebo později. Pokud metoda není zavolaná, není dolní mez intervalu omezená.
+notAfter(y, m, d, h, mi)
+shora omezuje časový interval. Pokud je omezení aktivní, hledáme možné návštěvníky zadané zóny, kteří byli schopni zónu navštívit v čase y-m-d h:mi nebo dříve. Pokud metoda není zavolaná, není dolní mez intervalu omezená.
+další
+do třídy si můžete přidat další metody, které potřebujete pro vaši implementaci.
+Odevzdávejte soubor s implementací tříd CMilBase, CVisitorLog, CAuditFilter a s dalšími podpůrnými třídami, které Vaše implementace potřebuje. Za základ řešení použijte zdrojový kód v přiloženém archivu. Archiv dále obsahuje testovací sadu vstupů a výstupů použitou v základním testu.
+
+Poznámky:
+
+Povinné testy požadují faktickou správnost implementace, není ale potřeba uvažovat formát logu big-endian a není potřeba pracovat s vnitřními branami, které mají přísnost větší než 1.
+Nepovinný test vyžaduje podporu formátu big-endian.
+Bonusový test požaduje správný výpočet pro přísnost vyšší než 1.
+Pro implementaci postačují algoritmy, které jsme prezentovali při přednášce. Dokonce i bonusový test lze realizovat algoritmem z přednášky.
+Při průchodu základnou předpokládáme, že nás zdržují pouze kontroly na hranicích zón. Přesun v rámci jedné zóny trvá čas 0, kontrola při příchodu z vnějšího světa/odchod ven ze základny také trvá čas 0.
+Logy z bran nezaznamenávají směr pohybu dovnitř/ven. Předpokládáme, že na počátku je celá základna prázdná. Tedy první průchod branou je příchod, další je odchod, pak zase příchod, ...
+Datum a čas uvedený v logu musíte kontrolovat. Pokud log obsahuje neplatné datum/čas (např. 2026-02-29 12:00), musí metoda processLog vyhodit výjimku std::runtime_error.
+Uvažujte standardní Gregoriánský kalendář (přestupný únor pro roky dělitelné 4, ne pro roky dělitelné 100, ale přestupný pro roky dělitelné 400). Testy zadávají data v rozsahu roků cca 1900-2100, tedy není potřeba uvažovat přestupný/nepřestupný rok 4000 ani změny kalendáře v dávné minulosti.
